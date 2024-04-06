@@ -1,0 +1,20 @@
+[package]
+name = "vulkano-transparent-cursor"
+version = "0.1.0"
+edition = "2021"
+publish = false
+authors = ["Gennadij Yatskov <gennadij@yatskov.online>"]
+
+[[bin]]
+name = "vulkano-transparent-cursor"
+path = "main.rs"
+test = false
+bench = false
+doc = false
+
+
+[dependencies]
+winit = "0.29"
+vulkano = { git = "https://github.com/vulkano-rs/vulkano", rev="94f50f18" }
+vulkano-util = "0.34"
+vulkano-shaders = "0.34"
