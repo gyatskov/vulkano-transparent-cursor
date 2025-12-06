@@ -3,6 +3,7 @@
 // `khr_dynamic_rendering` extension, or if you want to see how to support older versions, see the
 // original triangle example.
 
+use smallvec::SmallVec;
 use std::time::SystemTime;
 use std::{error::Error, sync::Arc};
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
@@ -503,6 +504,9 @@ fn main() -> Result<(), impl Error> {
     // each image.
     let mut attachment_image_views = window_size_dependent_setup(&images, &mut viewport);
 
+    // Pre-allocate viewport collection to avoid repeated allocations in the render loop
+    let mut viewport_collection: SmallVec<[Viewport; 2]> = [viewport.clone()].into_iter().collect();
+
     // Before we can start creating and recording command buffers, we need a way of allocating
     // them. Vulkano provides a command buffer allocator, which manages raw Vulkan command pools
     // underneath and provides a safe interface for them.
@@ -516,6 +520,9 @@ fn main() -> Result<(), impl Error> {
         device.clone(),
         Default::default(),
     ));
+
+    // Pre-allocate descriptor set layout outside the render loop for better performance
+    let set_layout = pipeline.layout().set_layouts().get(0).unwrap().clone();
 
     // Initialization is finally finished!
 
@@ -635,6 +642,10 @@ fn main() -> Result<(), impl Error> {
                     attachment_image_views =
                         window_size_dependent_setup(&new_images, &mut viewport);
 
+                    // Update viewport collection when viewport changes
+                    viewport_collection.clear();
+                    viewport_collection.push(viewport.clone());
+
                     recreate_swapchain = false;
                 }
 
@@ -711,7 +722,7 @@ fn main() -> Result<(), impl Error> {
 
                     subbuffer
                 };
-                let set_layout = pipeline.layout().set_layouts().get(0).unwrap();
+                // Reuse pre-allocated descriptor set layout for better performance
                 let set = DescriptorSet::new(
                     descriptor_set_allocator.clone(),
                     set_layout.clone(),
@@ -721,6 +732,17 @@ fn main() -> Result<(), impl Error> {
                 .unwrap();
 
                 const CLEAR_COLOR: [f32; 4] = [0.0, 0.0, 1.0, 1.0];
+
+                // Pre-allocate rendering attachment info to avoid repeated allocations
+                let rendering_attachment = RenderingAttachmentInfo {
+                    load_op: AttachmentLoadOp::Clear,
+                    store_op: AttachmentStoreOp::Store,
+                    clear_value: Some(CLEAR_COLOR.into()),
+                    ..RenderingAttachmentInfo::image_view(
+                        attachment_image_views[image_index as usize].clone(),
+                    )
+                };
+
                 builder
                     // Before we can draw, we have to *enter a render pass*. We specify which
                     // attachments we are going to use for rendering here, which needs to match
@@ -728,32 +750,14 @@ fn main() -> Result<(), impl Error> {
                     .begin_rendering(RenderingInfo {
                         // As before, we specify one color attachment, but now we specify the image
                         // view to use as well as how it should be used.
-                        color_attachments: vec![Some(RenderingAttachmentInfo {
-                            // `Clear` means that we ask the GPU to clear the content of this
-                            // attachment at the start of rendering.
-                            load_op: AttachmentLoadOp::Clear,
-                            // `Store` means that we ask the GPU to store the rendered output in
-                            // the attachment image. We could also ask it to discard the result.
-                            store_op: AttachmentStoreOp::Store,
-                            // The value to clear the attachment with. Here we clear it with a blue
-                            // color.
-                            //
-                            // Only attachments that have `AttachmentLoadOp::Clear` are provided
-                            // with clear values, any others should use `None` as the clear value.
-                            clear_value: Some(CLEAR_COLOR.into()),
-                            ..RenderingAttachmentInfo::image_view(
-                                // We specify image view corresponding to the currently acquired
-                                // swapchain image, to use for this attachment.
-                                attachment_image_views[image_index as usize].clone(),
-                            )
-                        })],
+                        color_attachments: vec![Some(rendering_attachment)],
                         ..Default::default()
                     })
                     .unwrap()
                     // We are now inside the first subpass of the render pass.
                     //
                     // TODO: Document state setting and how it affects subsequent draw commands.
-                    .set_viewport(0, [viewport.clone()].into_iter().collect())
+                    .set_viewport(0, viewport_collection.clone())
                     .unwrap()
                     .bind_pipeline_graphics(pipeline.clone())
                     .unwrap()

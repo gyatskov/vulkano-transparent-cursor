@@ -18,3 +18,4 @@ winit = "0.29"
 vulkano = { git = "https://github.com/vulkano-rs/vulkano", rev="94f50f18" }
 vulkano-util = "0.35.0"
 vulkano-shaders = "0.35"
+smallvec = "1.13"
