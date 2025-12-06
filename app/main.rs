@@ -8,6 +8,7 @@ use std::time::SystemTime;
 use std::{error::Error, sync::Arc};
 use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
+use vulkano::format::Format;
 use vulkano::pipeline::graphics::input_assembly;
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
 use vulkano::swapchain::CompositeAlpha;
@@ -17,11 +18,11 @@ use vulkano::{
         Buffer, BufferContents, BufferCreateInfo, BufferUsage,
     },
     command_buffer::{
-        allocator::StandardCommandBufferAllocator, sys::CommandBufferBeginInfo, CommandBufferLevel,
-        CommandBufferUsage, RecordingCommandBuffer, RenderingAttachmentInfo, RenderingInfo,
+        allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferUsage,
+        RenderingAttachmentInfo, RenderingInfo,
     },
     device::{
-        physical::PhysicalDeviceType, Device, DeviceCreateInfo, DeviceExtensions, Features,
+        physical::PhysicalDeviceType, Device, DeviceCreateInfo, DeviceExtensions, DeviceFeatures,
         QueueCreateInfo, QueueFlags,
     },
     image::{view::ImageView, Image, ImageUsage},
@@ -34,7 +35,10 @@ use vulkano::{
             multisample::MultisampleState,
             rasterization::RasterizationState,
             subpass::PipelineRenderingCreateInfo,
-            vertex_input::{Vertex, VertexDefinition},
+            vertex_input::{
+                Vertex, VertexInputAttributeDescription, VertexInputBindingDescription,
+                VertexInputRate, VertexInputState,
+            },
             viewport::{Viewport, ViewportState},
             GraphicsPipelineCreateInfo,
         },
@@ -222,9 +226,9 @@ fn main() -> Result<(), impl Error> {
             // standard triangle example. The feature is required to be supported by the device if
             // it supports Vulkan 1.3 and higher, or if the `khr_dynamic_rendering` extension is
             // available, so we don't need to check for support.
-            enabled_features: Features {
+            enabled_features: DeviceFeatures {
                 dynamic_rendering: true,
-                ..Features::empty()
+                ..DeviceFeatures::empty()
             },
 
             ..Default::default()
@@ -407,9 +411,24 @@ fn main() -> Result<(), impl Error> {
 
         // Automatically generate a vertex input state from the vertex shader's input interface,
         // that takes a single vertex buffer containing `Vertex` structs.
-        let vertex_input_state = Vertex::per_vertex()
-            .definition(&vs.info().input_interface)
-            .unwrap();
+        let vertex_input_state = VertexInputState::new()
+            .binding(
+                0,
+                VertexInputBindingDescription {
+                    stride: std::mem::size_of::<Vertex>() as u32,
+                    input_rate: VertexInputRate::Vertex,
+                    ..Default::default()
+                },
+            )
+            .attribute(
+                0,
+                VertexInputAttributeDescription {
+                    binding: 0,
+                    format: Format::R32G32_SFLOAT,
+                    offset: 0,
+                    ..Default::default()
+                },
+            );
 
         // Make a list of the shader stages that the pipeline will have.
         let stages = [
@@ -683,14 +702,10 @@ fn main() -> Result<(), impl Error> {
                 //
                 // Note that we have to pass a queue family when we create the command buffer. The
                 // command buffer will only be executable on that given queue family.
-                let mut builder = RecordingCommandBuffer::new(
+                let mut builder = AutoCommandBufferBuilder::primary(
                     command_buffer_allocator.clone(),
                     queue.queue_family_index(),
-                    CommandBufferLevel::Primary,
-                    CommandBufferBeginInfo {
-                        usage: CommandBufferUsage::OneTimeSubmit,
-                        ..Default::default()
-                    },
+                    CommandBufferUsage::OneTimeSubmit,
                 )
                 .unwrap();
 
@@ -743,43 +758,46 @@ fn main() -> Result<(), impl Error> {
                     )
                 };
 
-                builder
-                    // Before we can draw, we have to *enter a render pass*. We specify which
-                    // attachments we are going to use for rendering here, which needs to match
-                    // what was previously specified when creating the pipeline.
-                    .begin_rendering(RenderingInfo {
-                        // As before, we specify one color attachment, but now we specify the image
-                        // view to use as well as how it should be used.
-                        color_attachments: vec![Some(rendering_attachment)],
-                        ..Default::default()
-                    })
-                    .unwrap()
-                    // We are now inside the first subpass of the render pass.
-                    //
-                    // TODO: Document state setting and how it affects subsequent draw commands.
-                    .set_viewport(0, viewport_collection.clone())
-                    .unwrap()
-                    .bind_pipeline_graphics(pipeline.clone())
-                    .unwrap()
-                    .bind_descriptor_sets(
-                        PipelineBindPoint::Graphics,
-                        pipeline.layout().clone(),
-                        0,
-                        set,
-                    )
-                    .unwrap()
-                    .bind_vertex_buffers(0, vertex_buffer.clone())
-                    .unwrap();
                 unsafe {
-                    builder.draw(vertex_buffer.len() as u32, 1, 0, 0).unwrap();
-                }
-                builder
-                    // We leave the render pass.
-                    .end_rendering()
-                    .unwrap();
+                    builder
+                        // Before we can draw, we have to *enter a render pass*. We specify which
+                        // attachments we are going to use for rendering here, which needs to match
+                        // what was previously specified when creating the pipeline.
+                        .begin_rendering(RenderingInfo {
+                            // As before, we specify one color attachment, but now we specify the image
+                            // view to use as well as how it should be used.
+                            color_attachments: vec![Some(rendering_attachment)],
+                            ..Default::default()
+                        })
+                        .unwrap()
+                        // We are now inside the first subpass of the render pass.
+                        //
+                        // TODO: Document state setting and how it affects subsequent draw commands.
+                        .set_viewport(0, viewport_collection.clone())
+                        .unwrap()
+                        .bind_pipeline_graphics(pipeline.clone())
+                        .unwrap()
+                        .bind_descriptor_sets(
+                            PipelineBindPoint::Graphics,
+                            pipeline.layout().clone(),
+                            0,
+                            set,
+                        )
+                        .unwrap()
+                        .bind_vertex_buffers(0, vertex_buffer.clone())
+                        .unwrap()
+                        .draw(vertex_buffer.len() as u32, 1, 0, 0)
+                        .unwrap();
 
-                // Finish building the command buffer by calling `end`.
-                let command_buffer = builder.end().unwrap();
+                    builder
+                        // We leave the render pass.
+                        .end_rendering()
+                        .unwrap();
+                }
+
+                // Finish building the command buffer by calling `build`.
+                let command_buffer = builder.build().unwrap();
+                let command_buffer = Arc::new(command_buffer);
 
                 let future = previous_frame_end
                     .take()
