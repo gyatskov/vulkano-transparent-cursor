@@ -39,16 +39,20 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v3
-    - name: Build tests
-      run: cargo build --tests --verbose
-    - name: Run tests
-      run: cargo test --verbose
+    - name: Install latest CMake
+      run: |
+        brew update
+        brew upgrade cmake
     - name: Prepare Vulkan SDK
       uses: humbletim/setup-vulkan-sdk@v1.2.1
       with:
        vulkan-query-version: 1.4.304.1
        vulkan-components: Vulkan-Headers, Vulkan-Loader
        vulkan-use-cache: true
+    - name: Build tests
+      run: cargo build --tests --verbose
+    - name: Run tests
+      run: cargo test --verbose
     - name: Build App
       run: |
         cargo build --verbose
