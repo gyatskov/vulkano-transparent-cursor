@@ -27,14 +27,14 @@ raw-window-handle = "0.6"
 regex = "1.8"
 serde = "1.0"
 serde_json = "1.0"
-shaderc = "0.8"
+shaderc = "0.10.1"
 smallvec = "1.8"
 syn = "2.0"
 thread_local = "1.1"
 vk-parse = "0.12"
 vulkano = { git = "https://github.com/vulkano-rs/vulkano", rev="94f50f18" }
-vulkano-util = "0.34"
-vulkano-shaders = "0.34"
+vulkano-util = "0.35.0"
+vulkano-shaders = "0.35"
 winit = "0.29"
 
 [profile.release-with-debug]

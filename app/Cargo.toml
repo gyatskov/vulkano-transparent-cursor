@@ -16,5 +16,5 @@ doc = false
 [dependencies]
 winit = "0.29"
 vulkano = { git = "https://github.com/vulkano-rs/vulkano", rev="94f50f18" }
-vulkano-util = "0.34"
-vulkano-shaders = "0.34"
+vulkano-util = "0.35.0"
+vulkano-shaders = "0.35"
