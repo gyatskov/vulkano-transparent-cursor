@@ -314,7 +314,7 @@ fn main() -> Result<(), impl Error> {
         position: [f32; 2],
     }
 
-    let vertices = [
+    const VERTICES: [Vertex; 4] = [
         Vertex {
             position: [-1.0, 1.0],
         },
@@ -339,7 +339,7 @@ fn main() -> Result<(), impl Error> {
                 | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
             ..Default::default()
         },
-        vertices,
+        VERTICES,
     )
     .unwrap();
 
@@ -691,7 +691,7 @@ fn main() -> Result<(), impl Error> {
                     let cursor_info: [f32; 4] = [
                         cursor_position[0],
                         cursor_position[1],
-                        cursor_clicked as i32 as f32,
+                        if cursor_clicked { 1.0 } else { 0.0 },
                         0.,
                     ];
                     let window_size = window.inner_size();
@@ -720,6 +720,7 @@ fn main() -> Result<(), impl Error> {
                 )
                 .unwrap();
 
+                const CLEAR_COLOR: [f32; 4] = [0.0, 0.0, 1.0, 1.0];
                 builder
                     // Before we can draw, we have to *enter a render pass*. We specify which
                     // attachments we are going to use for rendering here, which needs to match
@@ -739,7 +740,7 @@ fn main() -> Result<(), impl Error> {
                             //
                             // Only attachments that have `AttachmentLoadOp::Clear` are provided
                             // with clear values, any others should use `None` as the clear value.
-                            clear_value: Some([0.0, 0.0, 1.0, 1.0].into()),
+                            clear_value: Some(CLEAR_COLOR.into()),
                             ..RenderingAttachmentInfo::image_view(
                                 // We specify image view corresponding to the currently acquired
                                 // swapchain image, to use for this attachment.
