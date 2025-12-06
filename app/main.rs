@@ -16,10 +16,8 @@ use vulkano::{
         Buffer, BufferContents, BufferCreateInfo, BufferUsage,
     },
     command_buffer::{
-        allocator::StandardCommandBufferAllocator, 
-        CommandBufferLevel, CommandBufferUsage, RecordingCommandBuffer, 
-        RenderingAttachmentInfo, RenderingInfo,
-        sys::CommandBufferBeginInfo,
+        allocator::StandardCommandBufferAllocator, sys::CommandBufferBeginInfo, CommandBufferLevel,
+        CommandBufferUsage, RecordingCommandBuffer, RenderingAttachmentInfo, RenderingInfo,
     },
     device::{
         physical::PhysicalDeviceType, Device, DeviceCreateInfo, DeviceExtensions, Features,
@@ -681,7 +679,7 @@ fn main() -> Result<(), impl Error> {
                     CommandBufferBeginInfo {
                         usage: CommandBufferUsage::OneTimeSubmit,
                         ..Default::default()
-                },
+                    },
                 )
                 .unwrap();
 
@@ -713,10 +711,10 @@ fn main() -> Result<(), impl Error> {
 
                     subbuffer
                 };
-                let layout = pipeline.layout().set_layouts().get(0).unwrap();
+                let set_layout = pipeline.layout().set_layouts().get(0).unwrap();
                 let set = DescriptorSet::new(
                     descriptor_set_allocator.clone(),
-                    layout.clone(),
+                    set_layout.clone(),
                     [WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer)],
                     [],
                 )
@@ -767,12 +765,10 @@ fn main() -> Result<(), impl Error> {
                     .unwrap()
                     .bind_vertex_buffers(0, vertex_buffer.clone())
                     .unwrap();
-                    unsafe {
-                        builder
-                    .draw(vertex_buffer.len() as u32, 1, 0, 0)
-                    .unwrap();
+                unsafe {
+                    builder.draw(vertex_buffer.len() as u32, 1, 0, 0).unwrap();
                 }
-                    builder
+                builder
                     // We leave the render pass.
                     .end_rendering()
                     .unwrap();
