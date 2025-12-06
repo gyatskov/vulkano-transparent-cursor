@@ -110,6 +110,7 @@ fn main() -> Result<(), impl Error> {
             .build(&event_loop)
             .unwrap(),
     );
+    window.set_cursor_visible(false);
     let surface = Surface::from_window(instance.clone(), window.clone()).unwrap();
 
     // Choose device extensions that we're going to use. In order to present images to a surface,
