@@ -62,7 +62,7 @@ use winit::{
 
 // Helper function to determine variable types
 fn type_to_str<T>(_: &T) -> &str {
-    return std::any::type_name::<T>();
+    std::any::type_name::<T>()
 }
 
 fn main() -> Result<(), impl Error> {
@@ -542,7 +542,7 @@ fn main() -> Result<(), impl Error> {
     ));
 
     // Pre-allocate descriptor set layout outside the render loop for better performance
-    let set_layout = pipeline.layout().set_layouts().get(0).unwrap().clone();
+    let set_layout = pipeline.layout().set_layouts().first().unwrap().clone();
 
     // Initialization is finally finished!
 
@@ -586,12 +586,10 @@ fn main() -> Result<(), impl Error> {
                         is_synthetic: _,
                     },
                 ..
-            } => match event.logical_key.as_ref() {
-                Key::Character("q") => {
-                    elwt.exit();
-                }
-                _ => (),
-            },
+            } => if let Key::Character("q") = event.logical_key.as_ref() {
+                  elwt.exit();
+            }
+
             Event::WindowEvent {
                 event: WindowEvent::Resized(_),
                 ..
